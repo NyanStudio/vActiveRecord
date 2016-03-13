@@ -11,10 +11,8 @@ namespace vActiveRecord
     {
         #region Local Variables
 
-        SQLiteConnection _conn;
         SQLiteCommand _cmd;
-
-        int _id = 0;
+        SQLiteTransaction _transaction;
 
         #endregion
 
@@ -22,19 +20,13 @@ namespace vActiveRecord
 
         protected string table_name { get; set; }
 
-        /*public virtual int id
-        {
-            get { return _id; }
-            set { _id = value; }
-        }*/
-
-        public SQLiteConnection connection
-        {
-            get { return _conn; }
-            set { _conn = value; }
-        }
-
         public bool is_new_record { get; set; }
+
+        #endregion
+
+        #region Public Static Properties
+
+        public static SQLiteConnection connection { get; set; }
 
         #endregion
 
@@ -42,42 +34,16 @@ namespace vActiveRecord
 
         public Base()
         {
-            _conn = new SQLiteConnection();
         }
 
         #endregion
 
         #region Private Methods
 
-        private bool create()
-        {
-            return true;
-        }
-
-        private bool create(Hashtable attributes)
-        {
-            //INSERT INTO this.table_name() VALUES();
-            StringBuilder sb = new StringBuilder();
-            bool is_first = true;
-            foreach (string key in attributes.Keys)
-            {
-                if (is_first)
-                {
-                    sb.Append(key);
-                }
-                else
-                {
-                    sb.Append("," + key);
-                }
-            }
-
-            return true;
-        }
-
-        private bool create_or_update()
-        {
-            return is_new_record ? create() : update();
-        }
+        //private bool create_or_update()
+        //{
+        //    return is_new_record ? create() : update();
+        //}
 
         private List<Hashtable> ExecuteReader(string sql, ref List<Hashtable> rows)
         {
@@ -107,10 +73,10 @@ namespace vActiveRecord
             return rows;
         }
 
-        private bool update()
-        {
-            return true;
-        }
+        //private bool update()
+        //{
+        //    return true;
+        //}
 
         #endregion
 
@@ -118,46 +84,32 @@ namespace vActiveRecord
 
         protected bool ExecuteNonQuery(string cmdText, ref int rowsAffected)
         {
-            try
-            {
-                _cmd = new SQLiteCommand(cmdText, _conn);
-                rowsAffected = _cmd.ExecuteNonQuery();
-                return true;
-            }
-            catch(SQLiteException ex)
-            {
+            if (Base.connection.State == System.Data.ConnectionState.Closed)
+                Base.connection.Open();
 
-            }
-            return false;
+            _cmd = new SQLiteCommand(cmdText, Base.connection);
+            rowsAffected = _cmd.ExecuteNonQuery();
+            return true;
         }
 
         protected bool ExecuteReader(string cmdText, ref SQLiteDataReader dr)
         {
-            try
-            {
-                _cmd = new SQLiteCommand(cmdText, _conn);
-                dr = _cmd.ExecuteReader();
-                return true;
-            }
-            catch (SQLiteException ex)
-            {
+            if (Base.connection.State == System.Data.ConnectionState.Closed)
+                Base.connection.Open();
 
-            }
-            return false;
+            _cmd = new SQLiteCommand(cmdText, Base.connection);
+            dr = _cmd.ExecuteReader();
+            return true;
         }
 
         protected bool ExecuteScalar(string cmdText, ref object obj)
         {
-            try
-            {
-                _cmd = new SQLiteCommand(cmdText, _conn);
-                obj = _cmd.ExecuteScalar();
-                return true;
-            }
-            catch (Exception ex)
-            {
-            }
-            return false;
+            if (Base.connection.State == System.Data.ConnectionState.Closed)
+                Base.connection.Open();
+
+            _cmd = new SQLiteCommand(cmdText, Base.connection);
+            obj = _cmd.ExecuteScalar();
+            return true;
         }
 
         #endregion
@@ -197,7 +149,7 @@ namespace vActiveRecord
             return cList;
         }
 
-        public int count()
+        public long count()
         {
             Hashtable args = new Hashtable();
 
@@ -205,26 +157,72 @@ namespace vActiveRecord
 
             List<Hashtable> rList = this.find(args);
 
-            return (int)rList[0][""];
+            return (long)rList[0]["_count"];
         }
 
-        public int count(Hashtable options)
+        public long count(Hashtable options)
         {
             if (options.ContainsKey("select"))
                 options["select"] = "count(*) AS _count";
 
             List<Hashtable> rList = this.find(options);
 
-            return (int)rList[0][""];
+            return (long)rList[0]["_count"];
         }
 
-        public int count_by_sql(string sql)
+        public long count_by_sql(string sql)
         {
             List<Hashtable> rows = null;
 
             this.ExecuteReader(sql, ref rows);
 
-            return (int)rows[0][""];
+            return (long)rows[0]["_count"];
+        }
+
+        public List<Hashtable> create(Hashtable attributes)
+        {
+            StringBuilder sb0 = new StringBuilder();
+            StringBuilder sb1 = new StringBuilder();
+            bool is_first = true;
+
+            if (attributes.ContainsKey("id"))
+            {
+                attributes.Remove("id");
+            }
+
+            sb0.Append("INSERT INTO " + this.table_name + "(");
+            
+            foreach (string key in attributes.Keys)
+            {
+                if (is_first)
+                {
+                    sb0.Append(key);
+                    sb1.Append("'" + attributes[key].ToString() + "'");
+                    is_first = false;
+                }
+                else
+                {
+                    sb0.Append("," + key);
+                    sb1.Append(",'" + attributes[key].ToString() + "'");
+                }
+            }
+
+            sb0.Append(") VALUES(" + sb1.ToString() + ");");
+
+            int rowsAffected = 0;
+
+            this.ExecuteNonQuery(sb0.ToString(), ref rowsAffected);
+
+            if (rowsAffected == 0)
+            {
+                return null;
+            }
+
+            object obj;
+
+            List<Hashtable> rows = this.last();
+
+            return rows;
         }
 
         public int delete(int id)
@@ -238,13 +236,21 @@ namespace vActiveRecord
             return rowsAffected;
         }
 
+        public int delete_all()
+        {
+            return this.delete_all(null);
+        }
+
         public int delete_all(string conditions)
         {
-            string cmdText = "DELETE FROM " + this.table_name + " WHERE " + conditions + ";";
+            string sql = "DELETE FROM " + this.table_name;
+
+            if (conditions != null)
+                sql += " WHERE " + conditions + ";";
 
             int rowsAffected = 0;
 
-            this.ExecuteNonQuery(cmdText, ref rowsAffected);
+            this.ExecuteNonQuery(sql, ref rowsAffected);
 
             return rowsAffected;
         }
@@ -294,7 +300,10 @@ namespace vActiveRecord
 
             StringBuilder sb = new StringBuilder();
 
-            sb.Append("SELECT " + select + " FROM" + table_name);
+            if (string.IsNullOrEmpty(select))
+                select = "*";
+
+            sb.Append("SELECT " + select + " FROM " + table_name);
 
             if (!string.IsNullOrEmpty(joins))
                 sb.Append(" " + joins);
@@ -333,9 +342,88 @@ namespace vActiveRecord
             return this.ExecuteReader(sql, ref rows);
         }
 
-        public SQLiteTransaction transaction()
+        public List<Hashtable> last()
         {
-            return _conn.BeginTransaction();
+            List<Hashtable> rows = null;
+
+            string sql = "SELECT * FROM " + this.table_name + " ORDER BY id DESC LIMIT 1";
+
+            return this.ExecuteReader(sql, ref rows);
+        }
+
+        public bool save(Hashtable attributes)
+        {
+            StringBuilder sb0 = new StringBuilder();
+            bool is_first = true;
+
+            sb0.Append("UPDATE " + this.table_name + " SET ");
+
+            foreach (string key in attributes.Keys)
+            {
+                if (key == "id")
+                    continue;
+
+                if (is_first)
+                {
+                    sb0.Append(key + "='" + attributes[key].ToString() + "'");
+                    is_first = false;
+                }
+                else
+                {
+                    sb0.Append("," + key + "='" + attributes[key].ToString() + "'");
+                }
+            }
+
+            sb0.Append(" WHERE id=" + attributes["id"].ToString() + ";");
+
+            int rowsAffected = 0;
+
+            this.ExecuteNonQuery(sb0.ToString(), ref rowsAffected);
+
+            return (rowsAffected != 0);
+        }
+
+        public void transaction_do()
+        {
+            _transaction = Base.connection.BeginTransaction();
+        }
+
+        public void transaction_end()
+        {
+            _transaction.Commit();
+        }
+
+        #endregion
+
+        #region Public Static Methods
+
+        public static void establish_connection(string database)
+        {
+            if (Base.connection != null)
+            {
+                if (Base.connection.State == System.Data.ConnectionState.Open)
+                {
+                    if (Base.connection.FileName == database)
+                        return;
+                }
+            }
+
+            Base.close_connection();
+
+            string connectionString = "Data Source=" + database + ";new=false;Version=3;";
+            Base.connection = new SQLiteConnection(connectionString);
+
+            if (Base.connection.State == System.Data.ConnectionState.Closed)
+                Base.connection.Open();
+        }
+
+        public static void close_connection()
+        {
+            if (Base.connection != null)
+            {
+                if (Base.connection.State == System.Data.ConnectionState.Open)
+                    Base.connection.Close();
+            }
         }
 
         #endregion
