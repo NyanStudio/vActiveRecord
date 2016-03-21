@@ -368,13 +368,23 @@ namespace vActiveRecord
             return this.ExecuteReader(sql, ref rows);
         }
 
+        public List<Hashtable> first()
+        {
+            Hashtable args = new Hashtable();
+            args.Add("order", "id");
+            args.Add("limit", "1");
+
+            return this.find(args);
+        }
+
         public List<Hashtable> last()
         {
-            List<Hashtable> rows = null;
+            Hashtable args = new Hashtable();
 
-            string sql = "SELECT * FROM " + this.table_name + " ORDER BY id DESC LIMIT 1";
+            args.Add("order", "id DESC");
+            args.Add("limit", "1");
 
-            return this.ExecuteReader(sql, ref rows);
+            return this.find(args);
         }
 
         public bool save(Hashtable attributes)
