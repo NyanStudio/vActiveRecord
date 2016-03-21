@@ -18,6 +18,8 @@ namespace vActiveRecord
 
         #region Public Properties
 
+        protected string file_name { get; set; }
+
         protected string table_name { get; set; }
 
         public bool is_new_record { get; set; }
@@ -84,6 +86,14 @@ namespace vActiveRecord
 
         protected bool ExecuteNonQuery(string cmdText, ref int rowsAffected)
         {
+            if (Base.connection != null)
+            {
+                if (Base.connection.FileName != this.file_name)
+                {
+                    Base.establish_connection(this.file_name);
+                }
+            }
+
             if (Base.connection.State == System.Data.ConnectionState.Closed)
                 Base.connection.Open();
 
@@ -94,6 +104,14 @@ namespace vActiveRecord
 
         protected bool ExecuteReader(string cmdText, ref SQLiteDataReader dr)
         {
+            if (Base.connection != null)
+            {
+                if (Base.connection.FileName != this.file_name)
+                {
+                    Base.establish_connection(this.file_name);
+                }
+            }
+
             if (Base.connection.State == System.Data.ConnectionState.Closed)
                 Base.connection.Open();
 
@@ -104,6 +122,14 @@ namespace vActiveRecord
 
         protected bool ExecuteScalar(string cmdText, ref object obj)
         {
+            if (Base.connection != null)
+            {
+                if (Base.connection.FileName != this.file_name)
+                {
+                    Base.establish_connection(this.file_name);
+                }
+            }
+
             if (Base.connection.State == System.Data.ConnectionState.Closed)
                 Base.connection.Open();
 
