@@ -48,5 +48,5 @@ args.Add("select", "first_name,last_name,age");
 //args.Add("offset", "50");
 //args.Add("joins", "AS p INNER JOIN city AS c ON p.city_id=c.id");
 
-List\<Hashtable\> rows = p.find(args)
+List<Hashtable> rows = p.find(args)
 ```
