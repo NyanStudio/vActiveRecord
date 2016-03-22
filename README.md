@@ -26,7 +26,7 @@ vActiveRecord.Base.establish_connection(SQLITE_FULL_PATH);
 
 ## Methods
 
-### public List<Hashtable> all()
+### public List\<Hashtable\> all()
 
 ```
 People people = new People();
@@ -34,7 +34,7 @@ List<Hashtable> allRows = people.all();
 
 ```
 
-### public find(Hashtable args)
+### public List\<Hashtable\> find(Hashtable args)
 
 ```
 People people = new People();
@@ -48,5 +48,5 @@ args.Add("select", "first_name,last_name,age");
 //args.Add("offset", "50");
 //args.Add("joins", "AS p INNER JOIN city AS c ON p.city_id=c.id");
 
-p.find(args)
+List\<Hashtable\> rows = p.find(args)
 ```
