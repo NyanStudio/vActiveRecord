@@ -42,10 +42,104 @@ namespace vActiveRecord
 
         #region Private Methods
 
-        //private bool create_or_update()
-        //{
-        //    return is_new_record ? create() : update();
-        //}
+        private List<Hashtable> _create_record(Hashtable attributes)
+        {
+            StringBuilder sb0 = new StringBuilder();
+            StringBuilder sb1 = new StringBuilder();
+            bool is_first = true;
+
+            if (attributes.ContainsKey("id"))
+            {
+                attributes.Remove("id");
+            }
+
+            sb0.Append("INSERT INTO " + this.table_name + "(");
+
+            foreach (string key in attributes.Keys)
+            {
+                if (is_first)
+                {
+                    sb0.Append(key);
+                    sb1.Append("'" + attributes[key].ToString() + "'");
+                    is_first = false;
+                }
+                else
+                {
+                    sb0.Append("," + key);
+                    sb1.Append(",'" + attributes[key].ToString() + "'");
+                }
+            }
+
+            sb0.Append(") VALUES(" + sb1.ToString() + ");");
+
+            int rowsAffected = 0;
+
+            this.ExecuteNonQuery(sb0.ToString(), ref rowsAffected);
+
+            if (rowsAffected == 0)
+            {
+                return null;
+            }
+
+            //object obj;
+
+            List<Hashtable> rows = this.last();
+
+            return rows;
+        }
+
+        private List<Hashtable> _update_record(Hashtable attributes)
+        {
+            StringBuilder sb = new StringBuilder();
+            bool is_first = true;
+
+            sb.Append("UPDATE " + this.table_name + " SET ");
+
+            foreach (string key in attributes.Keys)
+            {
+                if (key == "id")
+                    continue;
+
+                if (is_first)
+                {
+                    sb.Append(key + "='" + attributes[key].ToString() + "'");
+                    is_first = false;
+                }
+                else
+                {
+                    sb.Append("," + key + "='" + attributes[key].ToString() + "'");
+                }
+            }
+
+            sb.Append(" WHERE id=" + attributes["id"].ToString() + ";");
+
+            int rowsAffected = 0;
+
+            this.ExecuteNonQuery(sb.ToString(), ref rowsAffected);
+
+            if (rowsAffected == 0)
+            {
+                return null;
+            }
+            else
+            {
+                List<Hashtable> rows = new List<Hashtable>();
+                rows.Add(attributes);
+                return rows;
+            }
+        }
+
+        private List<Hashtable> create_or_update(Hashtable attributes)
+        {
+            if (attributes.ContainsKey("id"))
+            {
+                return _update_record(attributes);
+            }
+            else
+            {
+                return _create_record(attributes);
+            }
+        }
 
         private List<Hashtable> ExecuteReader(string sql, ref List<Hashtable> rows)
         {
@@ -74,11 +168,6 @@ namespace vActiveRecord
             }
             return rows;
         }
-
-        //private bool update()
-        //{
-        //    return true;
-        //}
 
         #endregion
 
@@ -207,48 +296,7 @@ namespace vActiveRecord
 
         public List<Hashtable> create(Hashtable attributes)
         {
-            StringBuilder sb0 = new StringBuilder();
-            StringBuilder sb1 = new StringBuilder();
-            bool is_first = true;
-
-            if (attributes.ContainsKey("id"))
-            {
-                attributes.Remove("id");
-            }
-
-            sb0.Append("INSERT INTO " + this.table_name + "(");
-            
-            foreach (string key in attributes.Keys)
-            {
-                if (is_first)
-                {
-                    sb0.Append(key);
-                    sb1.Append("'" + attributes[key].ToString() + "'");
-                    is_first = false;
-                }
-                else
-                {
-                    sb0.Append("," + key);
-                    sb1.Append(",'" + attributes[key].ToString() + "'");
-                }
-            }
-
-            sb0.Append(") VALUES(" + sb1.ToString() + ");");
-
-            int rowsAffected = 0;
-
-            this.ExecuteNonQuery(sb0.ToString(), ref rowsAffected);
-
-            if (rowsAffected == 0)
-            {
-                return null;
-            }
-
-            object obj;
-
-            List<Hashtable> rows = this.last();
-
-            return rows;
+            return _create_record(attributes);
         }
 
         public int delete(int id)
@@ -387,36 +435,9 @@ namespace vActiveRecord
             return this.find(args);
         }
 
-        public bool save(Hashtable attributes)
+        public List<Hashtable> save(Hashtable attributes)
         {
-            StringBuilder sb0 = new StringBuilder();
-            bool is_first = true;
-
-            sb0.Append("UPDATE " + this.table_name + " SET ");
-
-            foreach (string key in attributes.Keys)
-            {
-                if (key == "id")
-                    continue;
-
-                if (is_first)
-                {
-                    sb0.Append(key + "='" + attributes[key].ToString() + "'");
-                    is_first = false;
-                }
-                else
-                {
-                    sb0.Append("," + key + "='" + attributes[key].ToString() + "'");
-                }
-            }
-
-            sb0.Append(" WHERE id=" + attributes["id"].ToString() + ";");
-
-            int rowsAffected = 0;
-
-            this.ExecuteNonQuery(sb0.ToString(), ref rowsAffected);
-
-            return (rowsAffected != 0);
+            return create_or_update(attributes);
         }
 
         public void transaction_do()
