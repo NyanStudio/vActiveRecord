@@ -301,11 +301,11 @@ namespace vActiveRecord
 
         public int delete(int id)
         {
-            string conditions = "id=" + id;
+            string sql = "DELETE FROM " + this.table_name + " WHERE id=" + id;
 
             int rowsAffected = 0;
 
-            this.ExecuteNonQuery(conditions, ref rowsAffected);
+            this.ExecuteNonQuery(sql, ref rowsAffected);
 
             return rowsAffected;
         }
