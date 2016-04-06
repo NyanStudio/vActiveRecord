@@ -404,7 +404,7 @@ namespace vActiveRecord
         {
             List<Hashtable> rows = null;
 
-            string sql = "SELETC * FROM " + this.table_name + " WHERE id=" + id;
+            string sql = "SELECT * FROM " + this.table_name + " WHERE id=" + id;
 
             return this.ExecuteReader(sql, ref rows);
         }
